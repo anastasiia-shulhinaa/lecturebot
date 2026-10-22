@@ -1,0 +1,26 @@
+# Secrets
+.env
+*.json.key
+service-account*.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Local media used for testing
+samples/
+*.mp3
+*.mp4
+*.m4a
+*.wav
+*.flac
+*.ogg

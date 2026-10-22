@@ -1,0 +1,8 @@
+python-telegram-bot[webhooks]>=22.0,<23
+google-cloud-speech>=2.26
+google-cloud-storage>=2.18
+google-genai>=2.30,<3
+google-api-python-client>=2.140
+python-dotenv>=1.0
+pydantic>=2.7
+pytest>=8.0
