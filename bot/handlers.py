@@ -60,7 +60,7 @@ HELP_TEXT = (
     "1. Надішліть запис або YouTube-посилання.\n"
     "2. Google Cloud Speech-to-Text перетворює мовлення на текст "
     "(для YouTube відео аналізує Gemini).\n"
-    "3. Оберіть, що створити: конспект, тест або обидва.\n"
+    "3. Оберіть, що створити: короткий переказ, конспект, тест або конспект + тест.\n"
     "4. Ставте запитання за лекцією звичайним повідомленням.\n\n"
     "<b>Команди</b>\n"
     "/start — початок роботи\n"
@@ -78,13 +78,14 @@ GENERIC_ERROR_TEXT = "⚠️ Сталася помилка під час обр�
 ACTIONS_KEYBOARD = InlineKeyboardMarkup(
     [
         [
+            InlineKeyboardButton("⚡ Коротко", callback_data="brief"),
             InlineKeyboardButton("📝 Конспект", callback_data="summary"),
-            InlineKeyboardButton("❓ Тест", callback_data="quiz"),
         ],
         [
-            InlineKeyboardButton("📚 Обидва", callback_data="both"),
-            InlineKeyboardButton("📄 Транскрипт", callback_data="transcript"),
+            InlineKeyboardButton("❓ Тест", callback_data="quiz"),
+            InlineKeyboardButton("📚 Конспект + тест", callback_data="both"),
         ],
+        [InlineKeyboardButton("📄 Транскрипт", callback_data="transcript")],
     ]
 )
 
@@ -111,7 +112,7 @@ def register(application: Application) -> None:
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
     application.add_handler(CallbackQueryHandler(on_new_button, pattern="^new$"))
     application.add_handler(CallbackQueryHandler(on_youtube_button, pattern="^yt:"))
-    application.add_handler(CallbackQueryHandler(on_action, pattern="^(summary|quiz|both|transcript)$"))
+    application.add_handler(CallbackQueryHandler(on_action, pattern="^(brief|summary|quiz|both|transcript)$"))
     application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, on_unsupported))
     application.add_error_handler(on_error)
 
@@ -368,6 +369,8 @@ async def on_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     async def work(status: Message) -> None:
+        if action == "brief":
+            await _send_markdown(message, await services.gemini.summarize(transcript, brief=True))
         if action in ("summary", "both"):
             summary = await services.gemini.summarize(transcript)
             await _send_markdown(message, summary)
@@ -392,7 +395,10 @@ async def on_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await status.delete()
         await message.reply_text("Що ще зробити?", reply_markup=ACTIONS_KEYBOARD)
 
-    status_text = "❓ Складаю тест…" if action == "quiz" else "📝 Створюю конспект…"
+    status_text = {
+        "brief": "⚡ Стисло переказую лекцію…",
+        "quiz": "❓ Складаю тест…",
+    }.get(action, "📝 Створюю конспект…")
     await _run_job(message, context, status_text, work)
 
 

@@ -11,6 +11,10 @@ class ConfigError(RuntimeError):
     """Raised when a required setting is missing or invalid."""
 
 
+# Gemini variants that produce speech, images or embeddings instead of text.
+_NON_TEXT_MODEL_KINDS = ("-tts", "-image", "-live", "embedding")
+
+
 @dataclass(frozen=True)
 class Settings:
     telegram_bot_token: str
@@ -21,6 +25,7 @@ class Settings:
 
     gemini_backend: str  # "vertex" (Google Cloud credits) or "aistudio" (API key)
     gemini_model: str
+    gemini_fallback_models: list[str]  # tried in order when the main model is overloaded
     gemini_api_key: str | None
 
     youtube_api_key: str | None
@@ -51,6 +56,13 @@ def _require(name: str) -> str:
     return value
 
 
+def _list(name: str, default: str) -> list[str]:
+    """A comma-separated setting; set it to an empty value to get an empty list."""
+    raw = os.environ.get(name)
+    raw = default if raw is None else raw
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
 def _int(name: str, default: int) -> int:
     raw = _get(name)
     if raw is None:
@@ -76,7 +88,13 @@ def get_settings() -> Settings:
     if backend == "aistudio" and not gemini_api_key:
         raise ConfigError("GEMINI_API_KEY is required when GEMINI_BACKEND=aistudio")
 
-    alt_languages = [code.strip() for code in (_get("SPEECH_ALT_LANGUAGES", "en-US") or "").split(",")]
+    gemini_model = _get("GEMINI_MODEL", "gemini-3.5-flash")
+    fallback_models = _list("GEMINI_FALLBACK_MODELS", "gemini-3.5-flash")
+    for model in [gemini_model, *fallback_models]:
+        if any(kind in model for kind in _NON_TEXT_MODEL_KINDS):
+            raise ConfigError(
+                f"{model} does not generate text answers; use a text model such as gemini-3.8-flash"
+            )
 
     return Settings(
         telegram_bot_token=_require("TELEGRAM_BOT_TOKEN"),
@@ -84,11 +102,12 @@ def get_settings() -> Settings:
         google_cloud_location=_get("GOOGLE_CLOUD_LOCATION", "global"),
         gcs_bucket=_require("GCS_BUCKET"),
         gemini_backend=backend,
-        gemini_model=_get("GEMINI_MODEL", "gemini-3.5-flash"),
+        gemini_model=gemini_model,
+        gemini_fallback_models=[model for model in fallback_models if model != gemini_model],
         gemini_api_key=gemini_api_key,
         youtube_api_key=_get("YOUTUBE_API_KEY"),
         speech_language=_get("SPEECH_LANGUAGE", "uk-UA"),
-        speech_alt_languages=[code for code in alt_languages if code][:3],
+        speech_alt_languages=_list("SPEECH_ALT_LANGUAGES", "en-US")[:3],
         output_language=_get("OUTPUT_LANGUAGE", "українська"),
         quiz_questions=_int("QUIZ_QUESTIONS", 5),
         max_audio_minutes=_int("MAX_AUDIO_MINUTES", 90),

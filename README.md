@@ -20,6 +20,7 @@ Telegram-бот, який перетворює запис лекції на **с
 
 - 🎤 голосові повідомлення, 🎧 аудіофайли, 🎬 відео й кружечки (до 20 МБ);
 - 🔗 публічні YouTube-відео за посиланням (до 60 хв);
+- ⚡ короткий переказ: 3–5 речень і ключові слова;
 - 📝 конспект: тема, основні ідеї, ключові терміни, висновки (повідомленням і файлом `summary.md`);
 - ❓ тест у вигляді нативних Telegram-вікторин з поясненням правильної відповіді;
 - 💬 відповіді на запитання за лекцією;
@@ -120,7 +121,15 @@ copy .env.example .env          # заповнити значення
 gcloud auth application-default login
 gcloud auth application-default set-quota-project <PROJECT_ID>
 
+python -m bot.check_setup       # перевіряє ключі, доступи та всі API
 python -m bot.main
+```
+
+Або в Docker (той самий образ, що й для Cloud Run):
+
+```powershell
+docker build -t lecturebot .
+docker run --rm --env-file .env -v "$env:APPDATA\gcloud:/root/.config/gcloud:ro" lecturebot
 ```
 
 Секрети зберігаються лише в `.env` (є в `.gitignore`) або в Secret Manager. Доступ до
@@ -170,8 +179,8 @@ gcloud run services update lecturebot --region us-central1 `
 Новий акаунт Google Cloud отримує $300 кредитів на 90 днів. Speech-to-Text — 60 хв/міс
 безкоштовно, Cloud Storage — 5 ГБ у регіонах US, YouTube Data API — 10 000 одиниць квоти
 на день (`videos.list` = 1). Gemini оплачується за токени (для PoC — центи). Cloud Run з
-постійно ввімкненим інстансом — кілька доларів на тиждень, тому його варто вмикати лише
-на час демонстрації.
+постійно ввімкненим інстансом (1 vCPU, 1 ГБ) — близько $10 на тиждень, тому його варто
+вмикати лише на час демонстрації.
 
 ## Обмеження
 
